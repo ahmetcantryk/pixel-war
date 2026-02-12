@@ -37,8 +37,8 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
 
   const isOwner = room.owner_id === currentUserId;
   const isGuest = room.guest_id === currentUserId;
-  const isPlayer = isOwner || isGuest;
   const isHost = isOwner;
+  const isPlayerFromRoom = isOwner || isGuest;
 
   const player1Id = room.owner_id;
   const player2Id = room.guest_id || '';
@@ -134,21 +134,48 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
     ),
   });
 
-  // Klavye kontrolü
+  // isPlayer: room'dan veya gameState'ten kontrol et
+  // Guest katıldığında room.guest_id henüz güncel olmayabilir ama gameState'te vardır
+  const isPlayerFromGameState = gameState 
+    ? (gameState.player1.id === currentUserId || gameState.player2.id === currentUserId)
+    : false;
+  const isPlayer = isPlayerFromRoom || isPlayerFromGameState;
+
+  // Klavye kontrolü - her zaman aktif, kontroller callback içinde
+  const keyboardEnabled = gameState?.status === 'playing' && !isCountingDown;
+  
   useKeyboard({
     onDirectionChange: useCallback(
       (direction: Direction) => {
-        if (gameState?.status !== 'playing' || isCountingDown) return;
+        console.log('[Keyboard] Direction change:', direction, 'gameState status:', gameState?.status, 'isCountingDown:', isCountingDown);
+        
+        if (!gameState || gameState.status !== 'playing' || isCountingDown) {
+          console.log('[Keyboard] Blocked - game not playing or counting down');
+          return;
+        }
 
-        const player = gameState.player1.id === currentUserId ? gameState.player1 : gameState.player2;
-        if (player.isRespawning) return;
+        // Hangi oyuncu olduğumuzu bul
+        const isP1 = gameState.player1.id === currentUserId;
+        const isP2 = gameState.player2.id === currentUserId;
+        
+        if (!isP1 && !isP2) {
+          console.log('[Keyboard] Blocked - not a player. currentUserId:', currentUserId, 'p1:', gameState.player1.id, 'p2:', gameState.player2.id);
+          return;
+        }
 
+        const player = isP1 ? gameState.player1 : gameState.player2;
+        if (player.isRespawning) {
+          console.log('[Keyboard] Blocked - player respawning');
+          return;
+        }
+
+        console.log('[Keyboard] Sending direction change for player:', currentUserId);
         updateDirection(currentUserId, direction);
         broadcast('player_move', { playerId: currentUserId, direction });
       },
       [currentUserId, gameState, updateDirection, broadcast, isCountingDown]
     ),
-    enabled: isPlayer && gameState?.status === 'playing' && !isCountingDown,
+    enabled: keyboardEnabled,
   });
 
   // Realtime channel kurulumu - sadece bir kez
@@ -184,9 +211,11 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
           
           // Host kendi countdown'ını başlat
           startCountdown(() => {
-            const initialState = startGame();
+            // Guest ID'yi payload'dan al çünkü room state henüz güncellenmemiş olabilir
+            const guestId = payload.guestId;
+            const initialState = startGame(undefined, guestId);
             if (initialState) {
-              console.log('[Host] Game started, broadcasting game_start');
+              console.log('[Host] Game started, broadcasting game_start. Player2:', guestId);
               channel.send({
                 type: 'broadcast',
                 event: 'game_start',
@@ -206,8 +235,10 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
         }
       })
       .on('broadcast', { event: 'game_start' }, ({ payload }) => {
-        console.log('[Broadcast] game_start received');
-        syncState(payload as GameState);
+        console.log('[Broadcast] game_start received', payload);
+        const state = payload as GameState;
+        console.log('[Game] Player1:', state.player1.id, 'Player2:', state.player2.id, 'CurrentUser:', currentUserId);
+        syncState(state);
         gameStartedRef.current = true;
       })
       .on('broadcast', { event: 'game_update' }, ({ payload }) => {

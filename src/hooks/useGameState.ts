@@ -39,8 +39,10 @@ export function useGameState({
   const lastStateRef = useRef<GameState | null>(null);
 
   // Oyunu başlat
-  const startGame = useCallback((existingMatchScore?: MatchScore) => {
-    const initialState = createInitialGameState(player1Id, player2Id, gameSettings, existingMatchScore);
+  const startGame = useCallback((existingMatchScore?: MatchScore, overridePlayer2Id?: string) => {
+    const p2Id = overridePlayer2Id || player2Id;
+    console.log('[useGameState] startGame called. player1Id:', player1Id, 'player2Id:', p2Id);
+    const initialState = createInitialGameState(player1Id, p2Id, gameSettings, existingMatchScore);
     setGameState(initialState);
     lastStateRef.current = initialState;
     onStateChange?.(initialState);
