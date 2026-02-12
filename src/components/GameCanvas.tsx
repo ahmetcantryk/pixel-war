@@ -216,13 +216,15 @@ export function GameCanvas({ gameState, countdown }: GameCanvasProps) {
   const canvasSize = GRID_SIZE * CELL_SIZE;
 
   return (
-    <div className="relative rounded-lg overflow-hidden shadow-2xl border border-gray-200">
+    <div className="relative rounded-lg overflow-hidden shadow-xl border-2 border-gray-300 flex-shrink-0">
       <canvas
         ref={canvasRef}
         width={canvasSize}
         height={canvasSize}
         className="block"
-        style={{ imageRendering: 'pixelated' }}
+        style={{ 
+          imageRendering: 'pixelated',
+        }}
       />
     </div>
   );

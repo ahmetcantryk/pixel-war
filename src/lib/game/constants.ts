@@ -1,15 +1,15 @@
 // Grid sabitleri
-export const GRID_SIZE = 50; // Daha geniş arena
-export const CELL_SIZE = 16; // Daha büyük pixeller
+export const GRID_SIZE = 50; // Arena boyutu (50x50)
+export const CELL_SIZE = 14; // Pixel boyutu
 
 // Zamanlama
-export const TICK_RATE = 100; // ms
+export const TICK_RATE = 75; // ms
 export const GAME_DURATION = 30; // Test için sınırsız
 export const RECONNECT_TIMEOUT = 5000; // ms
 export const RESPAWN_DURATION = 3; // saniye - yeniden doğma süresi
 export const COUNTDOWN_DURATION = 3; // saniye - maç başlangıç geri sayımı
 
-// Başlangıç pozisyonları
+// Başlangıç pozisyonları (50x50 grid için)
 export const PLAYER1_START: { x: number; y: number } = { x: 12, y: 25 };
 export const PLAYER2_START: { x: number; y: number } = { x: 38, y: 25 };
 

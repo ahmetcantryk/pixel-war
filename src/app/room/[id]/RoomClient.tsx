@@ -243,6 +243,7 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
       })
       .on('broadcast', { event: 'game_update' }, ({ payload }) => {
         if (!isHost) {
+          // Host authoritative - tam state'i al
           syncState(payload as GameState);
         }
       })
@@ -284,6 +285,7 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
       })
       .on('broadcast', { event: 'player_move' }, ({ payload }) => {
         if (isHost && payload.playerId !== currentUserId) {
+          // Guest'in direction değişikliğini anında uygula
           updateDirection(payload.playerId, payload.direction);
         }
       })
@@ -364,15 +366,12 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
             console.log('[Join] Broadcasting guest_joined to host...');
             const channel = channelRef.current;
             if (channel) {
-              // Biraz bekle ki host channel'ı hazır olsun
-              setTimeout(() => {
-                console.log('[Join] Sending guest_joined now');
-                channel.send({
-                  type: 'broadcast',
-                  event: 'guest_joined',
-                  payload: { guestId: currentUserId },
-                });
-              }, 500);
+              console.log('[Join] Sending guest_joined now');
+              channel.send({
+                type: 'broadcast',
+                event: 'guest_joined',
+                payload: { guestId: currentUserId },
+              });
             } else {
               console.log('[Join] ERROR: Channel not ready!');
             }
@@ -451,12 +450,12 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
   // Countdown ekranı (oyun henüz başlamadı ama countdown var)
   if (isCountingDown && !gameState) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50">
+      <main className="h-screen flex flex-col items-center justify-center bg-gray-50 overflow-hidden">
         <div className="text-center">
-          <div className="text-9xl font-bold text-blue-600 mb-4 animate-pulse">
+          <div className="text-8xl font-bold text-blue-600 mb-2 animate-pulse">
             {countdown !== null ? Math.ceil(countdown) : ''}
           </div>
-          <p className="text-2xl text-gray-600">Oyun başlıyor...</p>
+          <p className="text-xl text-gray-600">Oyun başlıyor...</p>
         </div>
       </main>
     );
@@ -464,32 +463,78 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
 
   // Oyun ekranı
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50">
-      {gameState && (
-        <ScoreBoard
-          player1Score={gameState.player1.score}
-          player2Score={gameState.player2.score}
-          remainingTime={gameState.remainingTime}
-          player1Name="Mavi"
-          player2Name="Kırmızı"
-          currentPlayerId={currentUserId}
-          player1Id={player1Id}
-          matchScore={gameState.matchScore}
-          player1Respawning={gameState.player1.isRespawning}
-          player2Respawning={gameState.player2.isRespawning}
-          player1RespawnTimer={gameState.player1.respawnTimer}
-          player2RespawnTimer={gameState.player2.respawnTimer}
-        />
-      )}
+    <main className="h-screen w-screen flex flex-col bg-gray-100 overflow-hidden">
+      {/* Üst bar - kompakt skor ve bilgiler */}
+      <header className="flex-shrink-0 bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
+          {/* Sol - Çıkış */}
+          <button
+            onClick={() => router.push('/')}
+            className="text-gray-400 hover:text-gray-600 transition-colors text-sm flex items-center gap-1"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Çıkış
+          </button>
 
-      <GameCanvas gameState={gameState} countdown={countdown} />
+          {/* Orta - Skorlar */}
+          {gameState && (
+            <div className="flex items-center gap-6">
+              {/* Mavi Oyuncu */}
+              <div className="flex items-center gap-2">
+                <div className={`w-4 h-4 rounded bg-blue-500 ${gameState.player1.isRespawning ? 'animate-pulse' : ''}`} />
+                <span className={`font-medium ${gameState.player1.id === currentUserId ? 'text-blue-600' : 'text-gray-700'}`}>
+                  Mavi {gameState.player1.id === currentUserId && '(Sen)'}
+                </span>
+                <span className="text-2xl font-bold text-gray-900">{gameState.player1.score}</span>
+                {gameState.player1.isRespawning && gameState.player1.respawnTimer && (
+                  <span className="text-xs text-orange-500">({Math.ceil(gameState.player1.respawnTimer)}s)</span>
+                )}
+              </div>
 
-      <div className="mt-4 text-center h-12 flex flex-col justify-center">
-        {gameState?.status === 'playing' && !isCountingDown && (
-          <p className="text-gray-500 text-sm">WASD veya Ok tuşları ile hareket et</p>
-        )}
+              {/* VS & Süre */}
+              <div className="flex flex-col items-center px-4">
+                {gameState.matchScore && gameState.matchScore.matchNumber > 0 && (
+                  <div className="text-xs text-gray-400 mb-0.5">
+                    Tur {gameState.matchScore.matchNumber}: 
+                    <span className="text-blue-600 font-bold ml-1">{gameState.matchScore.player1Wins}</span>
+                    <span className="text-gray-400 mx-0.5">-</span>
+                    <span className="text-red-600 font-bold">{gameState.matchScore.player2Wins}</span>
+                  </div>
+                )}
+                <span className={`text-3xl font-mono font-bold ${gameState.remainingTime <= 10 ? 'text-red-500 animate-pulse' : 'text-gray-900'}`}>
+                  {Math.floor(gameState.remainingTime / 60)}:{String(Math.floor(gameState.remainingTime % 60)).padStart(2, '0')}
+                </span>
+              </div>
+
+              {/* Kırmızı Oyuncu */}
+              <div className="flex items-center gap-2">
+                {gameState.player2.isRespawning && gameState.player2.respawnTimer && (
+                  <span className="text-xs text-orange-500">({Math.ceil(gameState.player2.respawnTimer)}s)</span>
+                )}
+                <span className="text-2xl font-bold text-gray-900">{gameState.player2.score}</span>
+                <span className={`font-medium ${gameState.player2.id === currentUserId ? 'text-red-600' : 'text-gray-700'}`}>
+                  Kırmızı {gameState.player2.id === currentUserId && '(Sen)'}
+                </span>
+                <div className={`w-4 h-4 rounded bg-red-500 ${gameState.player2.isRespawning ? 'animate-pulse' : ''}`} />
+              </div>
+            </div>
+          )}
+
+          {/* Sağ - Kontroller */}
+          <span className="text-gray-400 text-xs">WASD / Ok tuşları</span>
+        </div>
+      </header>
+
+      {/* Ana oyun alanı - tam ortalanmış */}
+      <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+        <div style={{ transform: 'scale(var(--game-scale, 1))', transformOrigin: 'center' }}>
+          <GameCanvas gameState={gameState} countdown={countdown} />
+        </div>
       </div>
 
+      {/* Oyun sonu modal */}
       {gameState && (
         <GameOverModal
           isOpen={gameState.status === 'finished'}
@@ -505,6 +550,13 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
           onGoHome={() => router.push('/')}
         />
       )}
+
+      {/* CSS ile dinamik ölçekleme */}
+      <style jsx>{`
+        :global(:root) {
+          --game-scale: min(calc((100vh - 80px) / 700), calc(100vw / 750), 1);
+        }
+      `}</style>
     </main>
   );
 }

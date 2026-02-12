@@ -132,8 +132,9 @@ export function useGameState({
     }
   }, [gameState?.rematch, isHost, startRematch, onRematchStart]);
 
-  // Tick döngüsü (sadece host çalıştırır)
+  // Tick döngüsü (SADECE host çalıştırır - authoritative server model)
   useEffect(() => {
+    // Guest tick çalıştırmaz, sadece host'tan gelen state'i kullanır
     if (!isHost || !gameState || gameState.status !== 'playing') {
       if (tickIntervalRef.current) {
         clearInterval(tickIntervalRef.current);
@@ -154,6 +155,8 @@ export function useGameState({
 
         const newState = processTick(prev);
         lastStateRef.current = newState;
+        
+        // Her tick'te state'i broadcast et (tam senkronizasyon)
         onStateChange?.(newState);
 
         // Oyun bitti mi?
