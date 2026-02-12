@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pixel War - 1v1 Gerçek Zamanlı Alan Boyama Oyunu
 
-## Getting Started
+Pixel War, 2 oyunculu gerçek zamanlı bir grid tabanlı alan boyama oyunudur. Oyuncular özel davet linki ile aynı odaya katılır ve 30 saniye boyunca hareket ederek arkalarında bıraktıkları izlerle alan boyar.
 
-First, run the development server:
+## Özellikler
+
+- **Gerçek zamanlı 1v1 oyun**: Supabase Realtime ile senkronize
+- **Anonim kimlik doğrulama**: Kayıt olmadan hemen oyna
+- **Tek kullanımlık davet linki**: Güvenli oda sistemi
+- **Kapalı alan algoritması**: Flood-fill ile otomatik alan doldurma
+- **30 saniyelik rekabet**: Hızlı ve heyecanlı oyun
+
+## Teknolojiler
+
+- **Frontend**: Next.js 14 (App Router)
+- **Backend**: Supabase (Auth + Realtime + PostgreSQL)
+- **Rendering**: HTML5 Canvas
+- **Styling**: Tailwind CSS
+
+## Kurulum
+
+### 1. Bağımlılıkları yükle
+
+```bash
+npm install
+```
+
+### 2. Supabase yapılandırması
+
+`.env.local` dosyasını düzenle:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+### 3. Veritabanı şemasını uygula
+
+Supabase SQL Editor'da `supabase/migrations/001_initial_schema.sql` dosyasını çalıştır.
+
+### 4. Supabase Authentication ayarları
+
+Supabase Dashboard'da:
+1. Authentication > Settings > Auth Providers
+2. "Anonymous Sign-ins" seçeneğini aktif et
+
+### 5. Uygulamayı başlat
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Oyun Kuralları
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Başlangıç**: Her oyuncu 3x3'lük güvenli bir alanla başlar
+2. **Hareket**: WASD veya ok tuşları ile hareket et
+3. **İz bırakma**: Kendi alanından çıkınca iz bırakırsın
+4. **Alan fethi**: Kendi alanına geri döndüğünde, iz ile çevrili alan senin olur
+5. **Tehlike**: Rakibin izine değersen kaybedersin!
+6. **Süre**: 30 saniye sonunda en çok alana sahip olan kazanır
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Proje Yapısı
 
-## Learn More
+```
+src/
+├── app/
+│   ├── page.tsx              # Ana sayfa
+│   ├── actions.ts            # Server actions
+│   └── room/[id]/
+│       ├── page.tsx          # Oda sayfası
+│       └── RoomClient.tsx    # Client component
+├── components/
+│   ├── GameCanvas.tsx        # Canvas renderer
+│   ├── ScoreBoard.tsx        # Skor paneli
+│   ├── GameOverModal.tsx     # Oyun sonu
+│   └── WaitingRoom.tsx       # Bekleme odası
+├── hooks/
+│   ├── useGameState.ts       # Oyun durumu
+│   ├── useKeyboard.ts        # Klavye kontrolü
+│   └── useRealtime.ts        # Realtime
+└── lib/
+    ├── game/
+    │   ├── engine.ts         # Oyun motoru
+    │   ├── grid.ts           # Grid işlemleri
+    │   ├── flood-fill.ts     # Alan hesaplama
+    │   └── constants.ts      # Sabitler
+    └── supabase/
+        ├── client.ts         # Browser client
+        └── server.ts         # Server client
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Lisans
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
