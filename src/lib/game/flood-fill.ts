@@ -16,51 +16,49 @@ export function fillEnclosedArea(
   const grid = cloneGrid(originalGrid);
   const territoryState = playerId === 1 ? CellState.Player1Territory : CellState.Player2Territory;
   const enemyTerritoryState = playerId === 1 ? CellState.Player2Territory : CellState.Player1Territory;
-  const enemyTrailState = playerId === 1 ? CellState.Player2Trail : CellState.Player1Trail;
 
   // Önce trail'i territory'ye dönüştür
   convertTrailToTerritory(grid, playerId);
 
-  // Dış alanları işaretlemek için visited array
-  const visited: boolean[][] = Array(GRID_SIZE)
+  // Dışarıdan erişilebilir alanları bulmak için flood fill
+  // Kenarlardan başlayarak, kendi territory'sine çarpmadan ulaşılabilen her yeri işaretle
+  const reachableFromOutside: boolean[][] = Array(GRID_SIZE)
     .fill(null)
     .map(() => Array(GRID_SIZE).fill(false));
 
-  // Sınır hücrelerinden BFS başlat (dışarıdan erişilebilir alanları bul)
   const queue: Position[] = [];
+  const directions = [
+    { x: 0, y: -1 },  // yukarı
+    { x: 0, y: 1 },   // aşağı
+    { x: -1, y: 0 },  // sol
+    { x: 1, y: 0 },   // sağ
+  ];
 
-  // Tüm kenar hücrelerini kuyruğa ekle (sadece oyuncunun territory'si olmayanlar)
+  // Tüm kenar hücrelerini kuyruğa ekle (kendi territory'si olmayanlar)
   for (let i = 0; i < GRID_SIZE; i++) {
     // Üst kenar
-    if (grid[0][i] !== territoryState) {
+    if (grid[0][i] !== territoryState && !reachableFromOutside[0][i]) {
       queue.push({ x: i, y: 0 });
-      visited[0][i] = true;
+      reachableFromOutside[0][i] = true;
     }
     // Alt kenar
-    if (grid[GRID_SIZE - 1][i] !== territoryState) {
+    if (grid[GRID_SIZE - 1][i] !== territoryState && !reachableFromOutside[GRID_SIZE - 1][i]) {
       queue.push({ x: i, y: GRID_SIZE - 1 });
-      visited[GRID_SIZE - 1][i] = true;
+      reachableFromOutside[GRID_SIZE - 1][i] = true;
     }
     // Sol kenar
-    if (grid[i][0] !== territoryState) {
+    if (grid[i][0] !== territoryState && !reachableFromOutside[i][0]) {
       queue.push({ x: 0, y: i });
-      visited[i][0] = true;
+      reachableFromOutside[i][0] = true;
     }
     // Sağ kenar
-    if (grid[i][GRID_SIZE - 1] !== territoryState) {
+    if (grid[i][GRID_SIZE - 1] !== territoryState && !reachableFromOutside[i][GRID_SIZE - 1]) {
       queue.push({ x: GRID_SIZE - 1, y: i });
-      visited[i][GRID_SIZE - 1] = true;
+      reachableFromOutside[i][GRID_SIZE - 1] = true;
     }
   }
 
-  // BFS ile dış alanları işaretle
-  const directions = [
-    { x: 0, y: -1 },
-    { x: 0, y: 1 },
-    { x: -1, y: 0 },
-    { x: 1, y: 0 },
-  ];
-
+  // BFS - dışarıdan erişilebilir tüm hücreleri bul
   while (queue.length > 0) {
     const current = queue.shift()!;
 
@@ -68,28 +66,34 @@ export function fillEnclosedArea(
       const nx = current.x + dir.x;
       const ny = current.y + dir.y;
 
-      if (
-        isValidPosition(nx, ny) &&
-        !visited[ny][nx] &&
-        grid[ny][nx] !== territoryState // Sadece kendi territory'si engel
-      ) {
-        visited[ny][nx] = true;
-        queue.push({ x: nx, y: ny });
-      }
+      // Geçerli pozisyon mu?
+      if (!isValidPosition(nx, ny)) continue;
+      
+      // Zaten ziyaret edilmiş mi?
+      if (reachableFromOutside[ny][nx]) continue;
+      
+      // Kendi territory'si ise engel - buradan geçemez
+      if (grid[ny][nx] === territoryState) continue;
+
+      // Bu hücre dışarıdan erişilebilir
+      reachableFromOutside[ny][nx] = true;
+      queue.push({ x: nx, y: ny });
     }
   }
 
-  // Ziyaret edilmemiş hücreleri doldur (kapalı alan)
+  // Dışarıdan erişilemeyen (kapalı) alanları doldur
   let filledCount = 0;
   let capturedFromEnemy = 0;
 
   for (let y = 0; y < GRID_SIZE; y++) {
     for (let x = 0; x < GRID_SIZE; x++) {
-      // Ziyaret edilmemiş ve kendi territory'si olmayan her şeyi doldur
-      if (!visited[y][x] && grid[y][x] !== territoryState) {
+      // Dışarıdan erişilemez VE kendi territory'si değil = kapalı alan
+      if (!reachableFromOutside[y][x] && grid[y][x] !== territoryState) {
+        // Düşman territory'si mi?
         if (grid[y][x] === enemyTerritoryState) {
           capturedFromEnemy++;
         }
+        // Doldur
         grid[y][x] = territoryState;
         filledCount++;
       }
