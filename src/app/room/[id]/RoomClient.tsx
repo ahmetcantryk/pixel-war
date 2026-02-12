@@ -320,14 +320,18 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
   // Odaya katılma işlemi - channel hazır olduktan sonra
   useEffect(() => {
     if (!channelReady) return;
-    if (isPlayer || isJoining || hasJoinedRef.current) return;
-    if (room.status !== 'waiting') {
-      setError('Bu oyun zaten başlamış veya bitmiş.');
+    if (hasJoinedRef.current) return;
+    
+    // Zaten oyuncu ise katılma işlemi yapma
+    if (isPlayerFromRoom) {
+      console.log('[Join] Already a player from room, skipping join');
       return;
     }
+    
+    if (isJoining) return;
 
     const joinRoom = async () => {
-      console.log('[Join] Starting join process...');
+      console.log('[Join] Starting join process... channelReady:', channelReady);
       setIsJoining(true);
       hasJoinedRef.current = true;
 
@@ -339,7 +343,7 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
 
         if (error) throw error;
 
-        const result = data as { success: boolean; error?: string; role?: string };
+        const result = data as { success: boolean; error?: string; role?: string; status?: string };
         console.log('[Join] Result:', result);
         
         if (!result.success) {
@@ -350,20 +354,27 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
 
         // Oda bilgisini güncelle
         const { data: updatedRoom } = await supabase.from('rooms').select('*').eq('id', roomId).single();
+        console.log('[Join] Updated room:', updatedRoom);
 
         if (updatedRoom) {
           setRoom(updatedRoom);
           
           // Host'a katıldığımızı bildir
           if (result.role === 'guest') {
-            console.log('[Join] Broadcasting guest_joined...');
+            console.log('[Join] Broadcasting guest_joined to host...');
             const channel = channelRef.current;
             if (channel) {
-              channel.send({
-                type: 'broadcast',
-                event: 'guest_joined',
-                payload: { guestId: currentUserId },
-              });
+              // Biraz bekle ki host channel'ı hazır olsun
+              setTimeout(() => {
+                console.log('[Join] Sending guest_joined now');
+                channel.send({
+                  type: 'broadcast',
+                  event: 'guest_joined',
+                  payload: { guestId: currentUserId },
+                });
+              }, 500);
+            } else {
+              console.log('[Join] ERROR: Channel not ready!');
             }
           }
         }
@@ -377,7 +388,7 @@ export function RoomClient({ roomId, initialRoom, currentUserId }: RoomClientPro
     };
 
     joinRoom();
-  }, [channelReady, roomId, currentUserId, isPlayer, isJoining, room.status, supabase]);
+  }, [channelReady, roomId, currentUserId, isPlayerFromRoom, isJoining, supabase]);
 
   // Rövanş isteği handler
   const onRequestRematch = useCallback(() => {
